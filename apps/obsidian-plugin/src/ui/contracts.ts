@@ -1,0 +1,217 @@
+/**
+ * Obsidian's undocumented settings-modal API, present on `App` at runtime.
+ * Kept optional so callers degrade gracefully if Obsidian changes it.
+ */
+export interface ObsidianSettingsApi {
+  open(): void;
+  openTabById(id: string): void;
+}
+
+export interface AppWithSettings {
+  setting?: ObsidianSettingsApi;
+}
+
+export type SynchSyncState =
+  | "not_ready"
+  | "paused"
+  | "pending"
+  | "reconciling"
+  | "syncing"
+  | "offline"
+  | "reconnecting"
+  | "up_to_date"
+  | "attention_needed"
+  | "update_required";
+
+export interface SynchSyncLogs {
+  count: number;
+  text: string;
+}
+
+export interface SynchStorageStatus {
+  storageUsedBytes: number;
+  storageLimitBytes: number;
+}
+
+export type SynchStorageDisplayState =
+  | "normal"
+  | "near_limit"
+  | "needs_more_storage";
+
+export interface SynchBlockedSyncFile {
+  path: string;
+  reason?: "file_too_large" | "incompatible_path";
+  encryptedSizeBytes: number | null;
+  maxFileSizeBytes: number | null;
+}
+
+export type SynchCommunityPluginUpdateStatus =
+  | {
+      state: "idle" | "checking";
+      currentVersion: string;
+    }
+  | {
+      state: "up_to_date";
+      currentVersion: string;
+      latestVersion: string;
+    }
+  | {
+      state: "update_available";
+      currentVersion: string;
+      latestVersion: string;
+    }
+  | {
+      state: "failed";
+      currentVersion: string;
+      error: string;
+    };
+
+export type SynchServerCompatibilityStatus =
+  | {
+      state: "idle";
+    }
+  | {
+      state: "ok";
+      currentVersion: string;
+      minVersion: string;
+      apiMajor: number;
+    }
+  | {
+      state: "update_required";
+      currentVersion: string;
+      minVersion: string;
+      message: string;
+    }
+  | {
+      state: "incompatible";
+      currentVersion: string;
+      minVersion: string;
+      apiMajor: number;
+      message: string;
+    };
+
+export type SynchSubscriptionStatus =
+  | {
+      state: "idle" | "checking";
+    }
+  | {
+      state: "loaded";
+      planId: "free" | "starter" | "plus" | "self_hosted";
+      billingInterval: "monthly" | "annual" | null;
+      active: boolean;
+      status: string;
+      cancelAtPeriodEnd: boolean;
+      periodEnd: string | null;
+    }
+  | {
+      state: "failed";
+      error: string;
+    };
+
+export interface SynchDeletedFile {
+  entryId: string;
+  path: string;
+  revision: number;
+  deletedAt: number;
+}
+
+export interface SynchDeletedFileCursor {
+  deletedAt: number;
+  entryId: string;
+}
+
+export interface SynchDeletedFilesPage {
+  files: SynchDeletedFile[];
+  hasMore: boolean;
+  nextBefore: SynchDeletedFileCursor | null;
+}
+
+export interface SynchDeletedFilesRestoreResult {
+  restored: number;
+  failures: SynchDeletedFileRestoreFailure[];
+}
+
+export interface SynchDeletedFileRestoreFailure {
+  entryId: string;
+  message: string;
+}
+
+export interface SynchDeletedFilesPurgeResult {
+  purged: number;
+  failures: SynchDeletedFilePurgeFailure[];
+}
+
+export interface SynchDeletedFilePurgeFailure {
+  entryId: string;
+  message: string;
+}
+
+export interface SynchEntryVersionCursor {
+  capturedAt: number;
+  versionId: string;
+}
+
+export interface SynchEntryVersion {
+  versionId: string;
+  sourceRevision: number;
+  op: "upsert" | "delete";
+  hasBlob: boolean;
+  reason: "auto" | "before_delete" | "before_restore" | "manual";
+  capturedAt: number;
+}
+
+export interface SynchEntryVersionsPage {
+  path: string;
+  dirty: boolean;
+  versions: SynchEntryVersion[];
+  hasMore: boolean;
+  nextBefore: SynchEntryVersionCursor | null;
+}
+
+export type SynchVersionPreview =
+  | {
+      status: "text";
+      path: string;
+      reason: SynchEntryVersion["reason"];
+      capturedAt: number;
+      text: string;
+      currentText?: string;
+    }
+  | {
+      status: "image";
+      path: string;
+      reason: SynchEntryVersion["reason"];
+      capturedAt: number;
+      mimeType: string;
+      bytes: Uint8Array;
+    }
+  | {
+      status: "unavailable";
+      path: string;
+      reason: SynchEntryVersion["reason"] | null;
+      capturedAt: number | null;
+      message: string;
+    };
+
+/**
+ * One `.sync-conflict-<timestamp>` copy found in the vault, paired with the file
+ * it was made from.
+ *
+ * The copy is the conflict record: it holds the content sync could not merge.
+ * `originalPath` is derived from the copy's name and may point at a file that no
+ * longer exists, so the UI must handle a missing original.
+ */
+export interface SynchConflictFile {
+  /** Vault path of the `.sync-conflict-*` copy. */
+  copyPath: string;
+  /** Vault path the copy was made from, recovered from the copy's name. */
+  originalPath: string;
+  /** Copy file size in bytes, for showing which side is larger. */
+  copySize: number;
+  /** Original file size in bytes, or null when the original is missing. */
+  originalSize: number | null;
+  /** True when the original still exists in the vault. */
+  originalExists: boolean;
+  /** Last-modified time of the copy, used as the detection time. */
+  modifiedAt: number;
+}

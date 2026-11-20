@@ -1,0 +1,93 @@
+import type { UserVisibleSyncProgress } from "@synch/sync-client/engine";
+import type {
+  SyncConflictPolicy,
+  SyncFileRules,
+  VaultConfigSyncRules,
+} from "@synch/sync-client/core";
+import type { AuthReadiness } from "@synch/sync-client/auth";
+import type {
+  SynchDeletedFileCursor,
+  SynchDeletedFilesPage,
+  SynchDeletedFilesPurgeResult,
+  SynchDeletedFile,
+  SynchDeletedFilesRestoreResult,
+  SynchBlockedSyncFile,
+  SynchCommunityPluginUpdateStatus,
+  SynchServerCompatibilityStatus,
+  SynchStorageStatus,
+  SynchStorageDisplayState,
+  SynchSyncLogs,
+  SynchSubscriptionStatus,
+  SynchSyncState,
+  SynchVersionPreview,
+} from "../contracts";
+
+export interface SynchSettingsController {
+  getCommunityPluginUpdateStatus(): SynchCommunityPluginUpdateStatus;
+  ensureCommunityPluginUpdateCheck(): Promise<void>;
+  retryCommunityPluginUpdateCheck(): Promise<void>;
+  getServerCompatibilityStatus(): SynchServerCompatibilityStatus;
+  getOrganizationRole(): string | null;
+  isOrganizationRoleApiUnavailable(): boolean;
+  ensureOrganizationRoleCheck(): Promise<void>;
+  getSubscriptionStatus(): SynchSubscriptionStatus;
+  ensureSubscriptionStatusCheck(): Promise<void>;
+  retrySubscriptionStatusCheck(): Promise<void>;
+  openBillingManagementPage(): void;
+  openPricingPage(): void;
+  getAuthReadiness(): AuthReadiness;
+  getAuthStatusLabel(): string;
+  getSyncState(): SynchSyncState;
+  getSyncPercent(): number;
+  getSyncProgress(): UserVisibleSyncProgress;
+  getSyncLogs(): SynchSyncLogs;
+  clearSyncLogs(): void;
+  subscribeSyncLogs(listener: () => void): () => void;
+  listBlockedSyncFiles(): Promise<SynchBlockedSyncFile[]>;
+  isSyncEnabled(): boolean;
+  setSyncEnabled(enabled: boolean): Promise<void>;
+  getConflictPolicy(): SyncConflictPolicy;
+  setConflictPolicy(value: SyncConflictPolicy): Promise<void>;
+  getSyncIntervalMs(): number;
+  setSyncIntervalMs(value: number): Promise<void>;
+  syncNow(): Promise<void>;
+  getStorageStatus(): SynchStorageStatus | null;
+  getStorageDisplayState(): SynchStorageDisplayState;
+  watchStorageStatus(): void;
+  unwatchStorageStatus(): void;
+  getRemoteVaultStatusLabel(): string;
+  getApiBaseUrl(): string;
+  hasAuthenticatedSession(): boolean;
+  isDeviceLoginInProgress(): boolean;
+  hasConnectedRemoteVault(): boolean;
+  beginDeviceLogin(): Promise<void>;
+  cancelDeviceLogin(): void;
+  signOutDevice(): Promise<void>;
+  createRemoteVaultFromPrompt(): Promise<void>;
+  connectRemoteVaultFromPrompt(): Promise<void>;
+  openRemoteVaultManagementPage(): void;
+  openVaultSharing(): Promise<void>;
+  disconnectRemoteVault(): Promise<void>;
+  updateApiBaseUrl(value: string): Promise<void>;
+  getSyncFileRules(): SyncFileRules;
+  getVaultConfigSyncRules(): VaultConfigSyncRules;
+  updateSyncFileRule<K extends keyof SyncFileRules>(
+    key: K,
+    value: SyncFileRules[K],
+  ): Promise<void>;
+  updateExcludedFolders(paths: string[]): Promise<void>;
+  listSelectableExcludedFolderPaths(): string[];
+  updateIncludedHiddenFolders(paths: string[]): Promise<void>;
+  listSelectableIncludedHiddenFolderPaths(): Promise<string[]>;
+  updateVaultConfigSyncRule<K extends keyof VaultConfigSyncRules>(
+    key: K,
+    value: VaultConfigSyncRules[K],
+  ): Promise<void>;
+  listDeletedFiles(
+    before: SynchDeletedFileCursor | null,
+    limit: number,
+  ): Promise<SynchDeletedFilesPage>;
+  previewDeletedFile(entryId: string, fallbackPath: string): Promise<SynchVersionPreview>;
+  restoreDeletedFiles(files: SynchDeletedFile[]): Promise<SynchDeletedFilesRestoreResult>;
+  purgeDeletedFiles(files: SynchDeletedFile[]): Promise<SynchDeletedFilesPurgeResult>;
+}

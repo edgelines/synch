@@ -1,0 +1,23 @@
+{
+  "name": "@synch/sync-testkit",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./server": "./src/server.ts",
+    "./account": "./src/account.ts",
+    "./transport": "./src/transport.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsgo --noEmit"
+  },
+  "devDependencies": {
+    "@synch/sync-client": "workspace:*",
+    "@synch/vault-crypto": "workspace:*",
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4",
+    "ws": "^8.20.0"
+  }
+}

@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/storybook-static
+**/.turbo
+**/.wrangler
+.pnpm-store
+.git
+**/*.tsbuildinfo
+apps/obsidian-plugin/main.js
+**/.env
+**/data
+
+# Rebuilt from apps/api/web during the image build.
+apps/api/public

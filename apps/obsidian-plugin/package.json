@@ -1,0 +1,41 @@
+{
+  "name": "@synch/obsidian-plugin",
+  "private": true,
+  "version": "0.5.7",
+  "description": "End-to-end encrypted sync for Obsidian vaults.",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsgo --noEmit --skipLibCheck && node esbuild.config.mjs production",
+    "lint": "cd ../.. && eslint apps/obsidian-plugin/src packages/sync-client/src packages/vault-crypto/src --max-warnings=0",
+    "lint:fix": "pnpm run lint --fix",
+    "bump:version": "node scripts/bump-release-version.mjs",
+    "release-notes:prepare": "node scripts/prepare-release-notes.mjs",
+    "release-notes:reset": "node scripts/reset-release-notes.mjs",
+    "sync:metadata": "node scripts/sync-release-metadata.mjs",
+    "release:prepare": "pnpm run sync:metadata && pnpm run build",
+    "test": "vitest --config vitest.config.mts",
+    "typecheck": "tsgo --noEmit --skipLibCheck && pnpm run typecheck:tests",
+    "typecheck:tests": "tsgo --noEmit -p tsconfig.test.json"
+  },
+  "devDependencies": {
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.38.6",
+    "@types/node": "^24.0.0",
+    "dotenv": "^17.4.2",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-obsidianmd": "^0.4.1",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "30.1.1",
+    "obsidian": "^1.13.1",
+    "typescript-eslint": "^8.59.3",
+    "vitest": "^4.1.4"
+  },
+  "dependencies": {
+    "@synch/sync-client": "workspace:*",
+    "@synch/vault-crypto": "workspace:*",
+    "dexie": "^4.4.2",
+    "diff": "^9.0.0"
+  }
+}

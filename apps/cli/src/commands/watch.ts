@@ -1,0 +1,146 @@
+import type { SyncTerminalStopReason } from "@synch/sync-client/engine";
+import type { CliAppContext } from "../app/context";
+import { describeError } from "../app/context";
+import { formatSyncProgressSuffix, formatSyncStatusLabel } from "../app/notices";
+
+export async function runWatch(ctx: CliAppContext): Promise<number> {
+  await ctx.initializeAuth();
+  ctx.requireVerifiedAuth();
+  await ctx.openVaultSession();
+
+  let lastPrinted = "";
+  ctx.onSyncStatusChange = () => {
+    const progress =
+      ctx.syncStatus === "syncing" ? formatSyncProgressSuffix(ctx.syncProgress) : "";
+    const line = `status: ${formatSyncStatusLabel(ctx.syncStatus)}${progress}`;
+    if (line !== lastPrinted) {
+      lastPrinted = line;
+      ctx.logger.log(line);
+    }
+  };
+
+  let reconcilePromise: Promise<void> | null = null;
+  let reconcileRequested = false;
+  let stopping = false;
+  ctx.onReconcileRequested = () => {
+    if (stopping) {
+      return;
+    }
+    reconcileRequested = true;
+    if (reconcilePromise) {
+      return;
+    }
+    reconcilePromise = Promise.resolve().then(async () => {
+      try {
+        while (reconcileRequested && !stopping) {
+          reconcileRequested = false;
+          try {
+            await ctx.engine.reconcileOnce();
+            // Removing a symlink can make remote-only files eligible again without
+            // queuing any local mutation. Wake the pull loop for those paths too.
+            if (!stopping) ctx.engine.notifyLocalChange();
+          } catch (error) {
+            ctx.logger.error(`reconcile failed: ${describeError(error)}`);
+          }
+        }
+      } finally {
+        reconcilePromise = null;
+      }
+    });
+  };
+
+  const watchEnd = waitForWatchEnd(ctx);
+  try {
+    ctx.logger.log(`Watching ${ctx.vaultPath}`);
+    ctx.engine.registerVaultEvents();
+    await ctx.engine.reconcileOnce();
+    await ctx.engine.waitForLocalMutationWork();
+    await ctx.engine.startAutoSync();
+    await ctx.engine.syncNow();
+    if (!watchEnd.isSettled()) {
+      watchEnd.listenForShutdownSignals();
+      ctx.logger.log("Watching for changes. Press Ctrl+C to stop.");
+    }
+    const result = await watchEnd.promise;
+    if (result.kind === "signal") {
+      ctx.logger.log("Stopping...");
+      return 0;
+    }
+    return reportTerminalStop(ctx, result.reason);
+  } finally {
+    stopping = true;
+    ctx.onReconcileRequested = null;
+    ctx.onSyncStatusChange = null;
+    watchEnd.dispose();
+    ctx.onSyncTerminalStop = null;
+    ctx.changeSource.stop();
+    ctx.engine.stopAutoSync();
+    await reconcilePromise;
+  }
+}
+
+type WatchEndResult =
+  | { kind: "signal" }
+  | { kind: "terminal_stop"; reason: SyncTerminalStopReason };
+
+function waitForWatchEnd(ctx: CliAppContext): {
+  promise: Promise<WatchEndResult>;
+  isSettled: () => boolean;
+  listenForShutdownSignals: () => void;
+  dispose: () => void;
+} {
+  let settled = false;
+  let resolveResult: (result: WatchEndResult) => void = () => {};
+  const promise = new Promise<WatchEndResult>((resolve) => {
+    resolveResult = resolve;
+  });
+  const finish = (result: WatchEndResult) => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    resolveResult(result);
+  };
+  const onSignal = () => finish({ kind: "signal" });
+  ctx.onSyncTerminalStop = (reason) => finish({ kind: "terminal_stop", reason });
+  let listeningForSignals = false;
+
+  return {
+    promise,
+    isSettled: () => settled,
+    listenForShutdownSignals: () => {
+      if (listeningForSignals) {
+        return;
+      }
+      listeningForSignals = true;
+      process.on("SIGINT", onSignal);
+      process.on("SIGTERM", onSignal);
+    },
+    dispose: () => {
+      process.off("SIGINT", onSignal);
+      process.off("SIGTERM", onSignal);
+    },
+  };
+}
+
+function reportTerminalStop(ctx: CliAppContext, reason: SyncTerminalStopReason): 1 {
+  switch (reason.type) {
+    case "remote_vault_unavailable":
+      ctx.logger.error(
+        `Sync stopped: remote vault is unavailable (${reason.error.reason}): ${describeError(reason.error)}`,
+      );
+      return 1;
+    case "sync_history_mismatch":
+      // The engine already reports the detailed history mismatch error.
+      ctx.logger.error("Watch stopped because sync cannot continue with this history.");
+      return 1;
+    case "sync_paused":
+      ctx.logger.error("Watch stopped because the server paused sync. The vault connection is preserved; restart `synch watch` to retry.");
+      return 1;
+    case "storage_quota_exceeded":
+      ctx.logger.error(
+        "Sync stopped: remote vault storage quota exceeded. Free space in the remote vault, then restart `synch watch`.",
+      );
+      return 1;
+  }
+}

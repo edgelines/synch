@@ -1,0 +1,140 @@
+import type { PluginDataStoreLike } from "../adapters/plugin-data";
+import { getDefaultApiBaseUrl, parseApiBaseUrlInput } from "../config";
+import {
+  DEFAULT_SYNCH_PLUGIN_SETTINGS,
+  normalizeSynchPluginSettings,
+  normalizeSyncIntervalMs,
+  type SynchPluginSettings,
+  SYNCH_SETTINGS_KEY,
+} from "./schema";
+import {
+  normalizeSyncConflictPolicy,
+  type SyncConflictPolicy,
+  normalizeSyncFileRules,
+  type SyncFileRules,
+  normalizeVaultConfigSyncRules,
+  type VaultConfigSyncRules,
+} from "@synch/sync-client/core";
+
+export class SynchSettingsStore {
+  private settings: SynchPluginSettings = DEFAULT_SYNCH_PLUGIN_SETTINGS;
+
+  constructor(
+    private readonly pluginDataStore: PluginDataStoreLike,
+    private readonly defaultApiBaseUrl = getDefaultApiBaseUrl(),
+  ) {}
+
+  initialize(): SynchPluginSettings {
+    try {
+      this.settings = normalizeSynchPluginSettings(
+        this.pluginDataStore.read(SYNCH_SETTINGS_KEY),
+        this.defaultApiBaseUrl,
+      );
+    } catch (error) {
+      this.settings = {
+        ...DEFAULT_SYNCH_PLUGIN_SETTINGS,
+        apiBaseUrl: this.defaultApiBaseUrl,
+      };
+      throw error;
+    }
+
+    return this.settings;
+  }
+
+  getSnapshot(): SynchPluginSettings {
+    return this.settings;
+  }
+
+  async updateApiBaseUrl(nextValue: string): Promise<boolean> {
+    const normalized = parseApiBaseUrlInput(nextValue, this.defaultApiBaseUrl);
+    if (normalized === this.settings.apiBaseUrl) {
+      return false;
+    }
+
+    this.settings = {
+      ...this.settings,
+      apiBaseUrl: normalized,
+    };
+    this.pluginDataStore.write(SYNCH_SETTINGS_KEY, this.settings);
+    await this.pluginDataStore.save();
+    return true;
+  }
+
+  async updateFileRules(
+    nextRules: SyncFileRules,
+    configDir = "",
+  ): Promise<boolean> {
+    const normalized = normalizeSyncFileRules(nextRules, configDir);
+    if (JSON.stringify(normalized) === JSON.stringify(this.settings.fileRules)) {
+      return false;
+    }
+
+    this.settings = {
+      ...this.settings,
+      fileRules: normalized,
+    };
+    this.pluginDataStore.write(SYNCH_SETTINGS_KEY, this.settings);
+    await this.pluginDataStore.save();
+    return true;
+  }
+
+  async updateVaultConfigSyncRules(
+    nextRules: VaultConfigSyncRules,
+  ): Promise<boolean> {
+    const normalized = normalizeVaultConfigSyncRules(nextRules);
+    if (
+      JSON.stringify(normalized) === JSON.stringify(this.settings.vaultConfigSync)
+    ) {
+      return false;
+    }
+
+    this.settings = {
+      ...this.settings,
+      vaultConfigSync: normalized,
+    };
+    this.pluginDataStore.write(SYNCH_SETTINGS_KEY, this.settings);
+    await this.pluginDataStore.save();
+    return true;
+  }
+
+  async updateSyncEnabled(enabled: boolean): Promise<boolean> {
+    if (enabled === this.settings.syncEnabled) {
+      return false;
+    }
+
+    this.settings = {
+      ...this.settings,
+      syncEnabled: enabled,
+    };
+    this.pluginDataStore.write(SYNCH_SETTINGS_KEY, this.settings);
+    await this.pluginDataStore.save();
+    return true;
+  }
+
+  async updateConflictPolicy(value: SyncConflictPolicy): Promise<boolean> {
+    const conflictPolicy = normalizeSyncConflictPolicy(value);
+    if (conflictPolicy === this.settings.conflictPolicy) {
+      return false;
+    }
+
+    this.settings = { ...this.settings, conflictPolicy };
+    this.pluginDataStore.write(SYNCH_SETTINGS_KEY, this.settings);
+    await this.pluginDataStore.save();
+    return true;
+  }
+
+  async updateSyncIntervalMs(value: number): Promise<boolean> {
+    const syncIntervalMs = normalizeSyncIntervalMs(value);
+    if (syncIntervalMs === this.settings.syncIntervalMs) {
+      return false;
+    }
+
+    this.settings = {
+      ...this.settings,
+      syncIntervalMs,
+    };
+    this.pluginDataStore.write(SYNCH_SETTINGS_KEY, this.settings);
+    await this.pluginDataStore.save();
+    return true;
+  }
+}
