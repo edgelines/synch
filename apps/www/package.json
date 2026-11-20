@@ -24,7 +24,7 @@
     "@astrojs/mdx": "^7.0.5",
     "@astrojs/sitemap": "^3.7.3",
     "@tailwindcss/vite": "^4.3.3",
-    "astro": "^7.2.1",
+    "astro": "^7.4.7",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
@@ -34,7 +34,7 @@
     "@storybook/builder-vite": "10.6.0",
     "msw": "^2.15.0",
     "msw-storybook-addon": "^2.0.7",
-    "storybook": "10.6.0",
+    "storybook": "10.6.2",
     "wrangler": "^4.114.0"
   },
   "msw": {
